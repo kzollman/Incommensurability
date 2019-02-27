@@ -1,0 +1,87 @@
+val seed = Val[Int]
+val b1Mean = Val[Double]
+val b1Variance = Val[Double]
+val b2Mean = Val[Double]
+val b2Variance = Val[Double]
+val b3Mean = Val[Double]
+val b3Variance = Val[Double]
+val b4Mean = Val[Double]
+val b4Variance = Val[Double]
+val NumberOfBandits = Val[Double]
+val NumberOfAgents = Val[Double]
+val Epsilon = Val[Double]
+val InitialSample = Val[Double]
+val Network = Val[String]
+val NumberOfPulls = Val[Double]
+val Visuals = Val[Boolean]
+val ReevalFrequency = Val[Double]
+val launch = List("setup","go-full")
+val finalPerformance = Val[Double]
+val finalPerfVar = Val[Double]
+val NumberOfTrials = Val[Double]
+            
+val basicbanditmodelTask = NetLogo6Task(workDirectory / "BasicBanditModel.nlogo", launch, embedWorkspace = false, seed=seed) set(
+  inputs += (seed),
+  inputs += b1Mean mapped "b1-mean",
+  inputs += b1Variance mapped "b1-variance",
+  inputs += b2Mean mapped "b2-mean",
+  inputs += b2Variance mapped "b2-variance",
+  inputs += b3Mean mapped "b3-mean",
+  inputs += b3Variance mapped "b3-variance",
+  inputs += b4Mean mapped "b4-mean",
+  inputs += b4Variance mapped "b4-variance",
+  inputs += NumberOfBandits mapped "Number-Of-Bandits",
+  inputs += NumberOfAgents mapped "Number-Of-Agents",
+  inputs += Epsilon mapped "Epsilon",
+  inputs += InitialSample mapped "Initial-Sample",
+  inputs += Network mapped "Network",
+  inputs += NumberOfPulls mapped "Number-Of-Pulls",
+  inputs += Visuals mapped "Visuals?",
+  inputs += NumberOfTrials mapped "Number-Of-Trials",
+  inputs += ReevalFrequency mapped "Reeval-Frequency",
+  outputs += finalPerformance mapped "Final-Performance",
+  outputs += finalPerfVar mapped "Final-Performance-Var",
+  outputs += (Epsilon, seed, b1Mean, b1Variance, b2Mean, b2Variance, 
+              NumberOfBandits, NumberOfAgents, InitialSample, Network,
+              NumberOfPulls, ReevalFrequency, NumberOfTrials),
+ 
+  //Default values. Can be removed if OpenMOLE Vals are set by values coming from the workflow
+  seed := 0,
+  b1Mean := 10.0,
+  b1Variance := 100.0,
+  b2Mean := 0.0,
+  b2Variance := 0.0,
+  b3Mean := 0.0,
+  b3Variance := 0.0,
+  b4Mean := 0.0,
+  b4Variance := 0.0,
+  NumberOfBandits := 2.0,
+  NumberOfAgents := 1.0,
+  Epsilon := 0.0,
+  InitialSample := 1.0,
+  Network := "Complete",
+  NumberOfPulls := 500.0,
+  Visuals := false,
+  ReevalFrequency := 1.0,
+  NumberOfTrials := 30000)
+
+val sampling =
+    (Network in List("Complete", "Cycle")) x
+    (NumberOfAgents in (50.0 to 150.0 by 10.0))
+
+val csvHook = CSVHook(workDirectory / "CompleteRingLargeSearch.csv")
+
+val env =
+    SLURMEnvironment(
+        "kzollman",
+        "localhost",
+        storageSharedLocally = true,
+        nodes = 1,
+        threads = 2
+    )
+    
+
+DirectSampling (
+   evaluation = basicbanditmodelTask on env by 10 hook csvHook,
+   sampling = sampling
+   )
