@@ -56,7 +56,7 @@ val basicbanditmodelTask = NetLogo6Task(workDirectory / "BasicBanditModel.nlogo"
   b4Mean := 0.0,
   b4Variance := 0.0,
   NumberOfBandits := 2.0,
-  NumberOfAgents := 1.0,
+  NumberOfAgents := 10.0,
   Epsilon := 0.0,
   InitialSample := 1.0,
   Network := "Complete",
@@ -66,11 +66,12 @@ val basicbanditmodelTask = NetLogo6Task(workDirectory / "BasicBanditModel.nlogo"
   NumberOfTrials := 10000)
 
 val sampling =
-    (Epsilon in List(0.0, 0.1, 0.2, 0.3)) x
-    (InitialSample in List(1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0)) x
+    (Network in List("Complete", "Cycle")) x
+    (Epsilon in (0.0 to 0.5 by 0.025)) x
+    (b1Variance in List(100.0, 500.0, 1000.0)) x
     (seed in (UniformDistribution[Int]() take 3))
 
-val csvHook = CSVHook(workDirectory / "InitialEstimateSearch.csv")
+val csvHook = CSVHook(workDirectory / "CompleteRingEpsilon-BigVar.csv")
 
 val env =
     SLURMEnvironment(
@@ -83,6 +84,6 @@ val env =
     
 
 DirectSampling (
-   evaluation = basicbanditmodelTask on env by 10 hook csvHook,
+   evaluation = basicbanditmodelTask on env by 60 hook csvHook,
    sampling = sampling
    )

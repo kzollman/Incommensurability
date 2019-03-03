@@ -63,11 +63,12 @@ val basicbanditmodelTask = NetLogo6Task(workDirectory / "BasicBanditModel.nlogo"
   NumberOfPulls := 500.0,
   Visuals := false,
   ReevalFrequency := 1.0,
-  NumberOfTrials := 30000)
+  NumberOfTrials := 10000)
 
 val sampling =
     (Epsilon in List(0.0, 0.1, 0.2, 0.3)) x
-    (b1Variance in List(1.0, 10.0, 100.0, 1000.0, 10000.0))
+    (b1Variance in List(1.0, 5.0, 10.0, 50.0, 100.0, 1000.0, 10000.0)) x
+    (seed in (UniformDistribution[Int]() take 3))
 
 val csvHook = CSVHook(workDirectory / "VarianceSearch.csv")
 

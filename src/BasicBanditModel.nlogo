@@ -22,7 +22,7 @@ globals [bandit-means bandit-vars net-gap final-performance final-performance-va
 ;;   current-result: what was my result this round?
 ;;   time-since-reeval: when was the last time I reevaluated?
 
-turtles-own [ bandit-obs-mean bandit-obs-n current-best current-bandit current-result time-since-reeval]
+turtles-own [ bandit-obs-mean bandit-obs-n bandit-perf bandit-perf-n current-best current-bandit current-result time-since-reeval]
 
 ;;
 ;; setup: sets everything up.
@@ -42,6 +42,9 @@ to setup
     ;; draw the initial sample from each arm
     set bandit-obs-mean n-values Number-Of-Bandits [i -> mean n-values Initial-Sample [draw-bandit i]]
     set bandit-obs-n n-values Number-Of-Bandits [Initial-Sample]
+
+    set bandit-perf n-values Number-Of-Bandits [0]
+    set bandit-perf-n n-values Number-Of-Bandits [0]
 
     set current-best position (max bandit-obs-mean) bandit-obs-mean
     set time-since-reeval 0
@@ -132,9 +135,7 @@ to step
       ]
     ]
     if Network = "Complete" [
-      ask turtles [
-        update-complete
-      ]
+      update-complete
     ]
   ]
 
@@ -168,6 +169,14 @@ to play
     set current-result draw-bandit current-bandit
     set shape "circle"
   ]
+
+  let old-mean item current-bandit bandit-perf
+  let old-n item current-bandit bandit-perf-n
+  let new-mean ((old-n * old-mean) + current-result) / (old-n + 1)
+
+  set bandit-perf replace-item current-bandit bandit-perf new-mean
+  set bandit-perf-n replace-item current-bandit bandit-perf-n (old-n + 1)
+
   set color (current-bandit * 30) + 15
 end
 
@@ -181,8 +190,8 @@ to update-me
   let old-n item current-bandit bandit-obs-n
   let new-mean ((old-n * old-mean) + current-result) / (old-n + 1)
 
-    set bandit-obs-mean replace-item current-bandit bandit-obs-mean new-mean
-    set bandit-obs-n replace-item current-bandit bandit-obs-n (old-n + 1)
+  set bandit-obs-mean replace-item current-bandit bandit-obs-mean new-mean
+  set bandit-obs-n replace-item current-bandit bandit-obs-n (old-n + 1)
 end
 
 ;;
@@ -237,8 +246,8 @@ end
 
 
 ;;
-;; update-complete: must be called in turtle context. Same as update-network-large, except
-;;                  it presumes that you are updating everyone and completely ignores links
+;; update-complete: run in OBSERVER context (different from above). Works similarly to update-network-large,
+;;                  except it presumes that you are updating everyone and completely ignores links
 ;;                  this saves computational overhead for the complete graph
 ;;
 
@@ -251,12 +260,14 @@ to update-complete
       let mperf mean results
       let num length results
 
-      let old-mean item i bandit-obs-mean
-      let old-n item i bandit-obs-n
-      let new-mean ((old-n * old-mean) + (num * mperf)) / (old-n + num)
+      ask turtles [
+        let old-mean item i bandit-obs-mean
+        let old-n item i bandit-obs-n
+        let new-mean ((old-n * old-mean) + (num * mperf)) / (old-n + num)
 
-      set bandit-obs-mean replace-item i bandit-obs-mean new-mean
-      set bandit-obs-n replace-item i bandit-obs-n (old-n + num)
+        set bandit-obs-mean replace-item i bandit-obs-mean new-mean
+        set bandit-obs-n replace-item i bandit-obs-n (old-n + num)
+      ]
     ]
   ]
 end
@@ -278,7 +289,10 @@ end
 ;;
 
 to-report my-performance
-  report (sum (map * bandit-obs-mean bandit-obs-n)) / (sum bandit-obs-n)
+  if ticks = 0 [
+    report 0
+  ]
+  report (sum (map * bandit-perf bandit-perf-n)) / (sum bandit-perf-n)
 end
 
 ;;
@@ -520,7 +534,7 @@ Epsilon
 Epsilon
 0
 1
-0.0
+0.5
 .01
 1
 NIL
@@ -557,10 +571,10 @@ true
 false
 "" ""
 PENS
-"Bandit 1" 1.0 0 -2674135 true "" "plotxy ticks mean [item 0 bandit-obs-mean] of turtles"
-"Bandit 2" 1.0 0 -1184463 true "" "plotxy ticks mean [item 1 bandit-obs-mean] of turtles"
-"Bandit 3" 1.0 0 -14835848 true "" "if Number-Of-Bandits > 2 [plotxy ticks mean [item 2 bandit-obs-mean] of turtles]"
-"Badnit 4" 1.0 0 -13345367 true "" "if Number-Of-Bandits > 3 [plotxy ticks mean [item 3 bandit-obs-mean] of turtles]"
+"Bandit 1" 1.0 0 -2674135 true "" "plotxy ticks mean [item 0 bandit-perf] of turtles"
+"Bandit 2" 1.0 0 -1184463 true "" "plotxy ticks mean [item 1 bandit-perf] of turtles"
+"Bandit 3" 1.0 0 -14835848 true "" "if Number-Of-Bandits > 2 [plotxy ticks mean [item 2 bandit-perf] of turtles]"
+"Badnit 4" 1.0 0 -13345367 true "" "if Number-Of-Bandits > 3 [plotxy ticks mean [item 3 bandit-perf] of turtles]"
 
 PLOT
 830
@@ -599,7 +613,7 @@ Number-Of-Pulls
 Number-Of-Pulls
 1
 10000
-151.0
+651.0
 50
 1
 NIL
@@ -664,7 +678,6 @@ To run the model click the SETUP BUTTON. STEP has all players choose and pull on
 The two plots illustrate the performance of the agents.  The top plot indicates how each bandit has done in the observed trials.  Once all agents abandon a particular bandit, you will notice that the plot is flat because no further observations are made of that bandit.  
 
 The bottom plot shows how the community of agents is peforming, averaging over all bandits.  This represents a measure of success for the community.
-
 @#$#@#$#@
 default
 true

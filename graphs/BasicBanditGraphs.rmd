@@ -1,0 +1,151 @@
+---
+title: "BasicBanditModel"
+author: "Keivn J.S. Zollman"
+date: "February 27, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+## By defult, show code for all chunks in the knitted document,
+## as well as the output. To override for a particular chunk
+## use echo = FALSE in its options.
+knitr::opts_chunk$set(echo = TRUE) 
+
+## Set the default size of figures
+knitr::opts_chunk$set(fig.width=8, fig.height=5)  
+
+## Load the libraries we will be using
+library(gapminder)
+library(here)
+library(socviz)
+library(tidyverse)
+
+```
+
+## Introduction
+
+This is an R Markdown document to develop graphs for the BasicBanditModel.  Explanation for the model and how it works can be found elsewhere.
+
+
+## Variance in bandit arms
+
+This simulation compares one arm that always pays zero to another arm that pays 10 with variable variance.  It looks at several different values of epsilon to compare which is superior for the different values of the variance parameter.
+
+First data set is a detailed exploration of epsilon
+```{r}
+rawEpsilonVariance <- read.csv("../data/IndividualEpsilonSearch.csv", header=TRUE)
+
+epsilonVariance <- rawEpsilonVariance %>% group_by(Epsilon, b1Variance) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+```
+
+```{r}
+plot <- ggplot(epsilonVariance, aes(x = Epsilon, y = performance, group = b1Variance, color = as.character(b1Variance), shape = as.character(b1Variance), min = performance - confidenceInterval, ymax = performance + confidenceInterval)) 
+
+plot + geom_pointrange() + geom_line()
+```
+
+
+```{r}
+plot <- ggplot(epsilonVariance, aes(x = b1Variance, y = performance, group = Epsilon, color = as.character(Epsilon), min = performance - confidenceInterval, ymax = performance + confidenceInterval))
+
+plot + geom_pointrange() + geom_line()
+
+```
+
+Now looking at even larger variances
+
+```{r}
+rawVarianceComparison <- read.csv("../data/VarianceSearch.csv", header=TRUE) 
+
+varianceComparison <- rawVarianceComparison %>% group_by(Epsilon, b1Variance) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+```
+
+Now we'll plot the performance of the four epsilsons against the variance.  As you can see the better epsilon depends on the variance of the underlying arm.  The lower the variance (where initial results are more informative), the lower epsilons perform better.  But as the variance is higher (where initial results are less informative) larger epsilons do better.
+
+Two other interesting facts worth noting.  First, that performance goes down (on average) as the variance increases.  That's no surpise, but it's worth noting that the harder the learning problem the worse everyone does.  Second, that our estimate of the performance gets much worse at the vary large variances (look that the confidence interval).
+
+```{r} 
+plot <- ggplot(varianceComparison, aes(x = b1Variance, y = performance, group = Epsilon, color = as.character(Epsilon), shape = as.character(Epsilon), min = performance - confidenceInterval, ymax = performance + confidenceInterval))
+
+plot + geom_pointrange(position = position_dodge(width = 0.1)) + geom_line(position = position_dodge(width = 0.1)) + scale_x_log10() + labs(x = "Variance", y = "Performance", color = "Epsilon")
+``` 
+
+## Initial sample
+
+ We can vary how reliable are our initial estimates of the different bandit arms.  This is achevied by giving each individual an initial sample of x draws from each bandit before the game begins. 
+```{r} 
+rawInitialSample <- read.csv("../data/InitialEstimateSearch.csv", header=TRUE)
+
+initialSample <- rawInitialSample %>% group_by(Epsilon, InitialSample) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+
+```
+
+```{r}
+plot <- ggplot(initialSample, aes(x = InitialSample, y = performance, group = Epsilon, color = as.character(Epsilon), shape = as.character(Epsilon), min = performance - confidenceInterval, ymax = performance + confidenceInterval)) 
+
+plot + geom_pointrange(position = position_dodge(width = 0.1)) + geom_line(position = position_dodge(width = 0.1)) + scale_x_log10() + labs(x = "Size Of Initial Sample", y = "Performance", color = "Epsilon", shape = "Epsilon") 
+```
+
+## Delay update
+
+Instead of having agents update which bandit looks superior on every tick, they might wait -- stick with what looks best for some number of rounds. 
+
+```{r} 
+rawWaitTime <- read.csv("../data/DelayUpdateSearch.csv", header=TRUE)
+
+waitTime <- rawWaitTime %>% group_by(Epsilon, ReevalFrequency) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+
+```
+
+```{r}
+plot <- ggplot(waitTime, aes(x = ReevalFrequency, y = performance, group = Epsilon, color = as.character(Epsilon), shape = as.character(Epsilon), min = performance - confidenceInterval, ymax = performance + confidenceInterval)) 
+
+plot + geom_pointrange(position = position_dodge(width = 0.1)) + geom_line(position = position_dodge(width = 0.1)) +  labs(x = "Wait time", y = "Performance", color = "Epsilon", shape = "Epsilon") 
+```
+
+
+## Comparing network structures and epsilon 
+
+```{r}
+rawSocialEpsilon <- read.csv("../data/CompleteRingEpsilon.csv", header=TRUE)
+
+socialEpsilon <- rawSocialEpsilon %>% group_by(Network, Epsilon) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+
+```
+
+
+```{r}
+plot <- ggplot(socialEpsilon, aes(x = Epsilon, y = performance, group = Network, color = Network, shape = Network, min = performance - confidenceInterval, ymax = performance + confidenceInterval)) 
+
+ plot + geom_pointrange() + geom_line() 
+```
+
+```{r}
+rawMoreSocialEpsilon <- read.csv("../data/CompleteRingEpsilon-BigVar.csv", header=TRUE)
+
+rawAllSocialEpsilon <- rbind(rawSocialEpsilon, rawMoreSocialEpsilon)
+
+allSocialEpsilon <- rawAllSocialEpsilon %>% group_by(Network, Epsilon, b1Variance) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+
+```
+
+```{r}
+plot <- ggplot(allSocialEpsilon, aes(x = Epsilon, y = performance, group = Network, color = Network, shape = Network, min = performance - confidenceInterval, ymax = performance + confidenceInterval)) 
+
+ plot + geom_pointrange() + geom_line() + facet_grid(b1Variance ~ .)
+```
+
+### Number of agents 
+
+```{r}
+rawSizeComparison <- read.csv("../data/CompleteRingShortSearch.csv", header=TRUE)
+
+sizeComparison <- rawSizeComparison %>% group_by(Network, NumberOfAgents) %>% summarize(performance = mean(finalPerformance), perfVar = sum(finalPerfVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% mutate(confidenceInterval = qt(.975,df=totalTrials - 1)*(sqrt(perfVar)/sqrt(totalTrials)))
+```  
+
+
+```{r}
+plot <- ggplot(sizeComparison, aes(x = NumberOfAgents, y = performance, group = Network, color = Network, shape = Network, min = performance - confidenceInterval, ymax = performance + confidenceInterval))
+
+plot + geom_pointrange() + geom_line()
+```

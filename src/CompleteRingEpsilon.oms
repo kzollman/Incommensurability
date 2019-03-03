@@ -48,7 +48,7 @@ val basicbanditmodelTask = NetLogo6Task(workDirectory / "BasicBanditModel.nlogo"
   //Default values. Can be removed if OpenMOLE Vals are set by values coming from the workflow
   seed := 0,
   b1Mean := 10.0,
-  b1Variance := 100.0,
+  b1Variance := 50.0,
   b2Mean := 0.0,
   b2Variance := 0.0,
   b3Mean := 0.0,
@@ -63,11 +63,12 @@ val basicbanditmodelTask = NetLogo6Task(workDirectory / "BasicBanditModel.nlogo"
   NumberOfPulls := 500.0,
   Visuals := false,
   ReevalFrequency := 1.0,
-  NumberOfTrials := 30000)
+  NumberOfTrials := 10000)
 
 val sampling =
     (Network in List("Complete", "Cycle")) x
-    (Epsilon in (0.0 to 0.5 by 0.025))
+    (Epsilon in (0.0 to 0.5 by 0.025)) x
+    (seed in (UniformDistribution[Int]() take 3))
 
 val csvHook = CSVHook(workDirectory / "CompleteRingEpsilon.csv")
 
@@ -82,6 +83,6 @@ val env =
     
 
 DirectSampling (
-   evaluation = basicbanditmodelTask on env by 10 hook csvHook,
+   evaluation = basicbanditmodelTask on env by 30 hook csvHook,
    sampling = sampling
    )

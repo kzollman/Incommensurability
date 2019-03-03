@@ -1,0 +1,119 @@
+val seed = Val[Int]
+val b1Mean1 = Val[Double]
+val b1Variance = Val[Double]
+val b2Mean1 = Val[Double]
+val b2Variance = Val[Double]
+val b3Mean1 = Val[Double]
+val b3Variance = Val[Double]
+val b4Mean1 = Val[Double]
+val b4Variance = Val[Double]
+val NumberOfBandits = Val[Double]
+val NumberOfAgents = Val[Double]
+val Epsilon = Val[Double]
+val InitialSample = Val[Double]
+val Network = Val[String]
+val NumberOfPulls = Val[Double]
+val ResultCorrelation = Val[Double]
+val PreferenceBias = Val[Double]
+val b1Mean2 = Val[Double]
+val b2Mean2 = Val[Double]
+val b3Mean2 = Val[Double]
+val b4Mean2 = Val[Double]
+val Visuals = Val[Boolean]
+val NumberOfTrials = Val[Double]
+val launch = List("setup","go-full")
+
+val subPerformance = Val[Double]
+val subPerformanceVar = Val[Double]
+
+val objPerformance1 = Val[Double]
+val objPerformance1Var = Val[Double]
+
+val objPerformance2 = Val[Double]
+val objPerformance2Var = Val[Double]
+            
+val incomensurablebanditmodelTask = NetLogo6Task(workDirectory / "IncomensurableBanditModel.nlogo", launch, embedWorkspace = false, seed=seed) set(
+  inputs += (seed),
+  inputs += b1Mean1 mapped "b1-mean-1",
+  inputs += b1Variance mapped "b1-variance",
+  inputs += b2Mean1 mapped "b2-mean-1",
+  inputs += b2Variance mapped "b2-variance",
+  inputs += b3Mean1 mapped "b3-mean-1",
+  inputs += b3Variance mapped "b3-variance",
+  inputs += b4Mean1 mapped "b4-mean-1",
+  inputs += b4Variance mapped "b4-variance",
+  inputs += NumberOfBandits mapped "Number-Of-Bandits",
+  inputs += NumberOfAgents mapped "Number-Of-Agents",
+  inputs += Epsilon mapped "Epsilon",
+  inputs += InitialSample mapped "Initial-Sample",
+  inputs += Network mapped "Network",
+  inputs += NumberOfPulls mapped "Number-Of-Pulls",
+  inputs += ResultCorrelation mapped "ResultCorrelation",
+  inputs += PreferenceBias mapped "PreferenceBias",
+  inputs += b1Mean2 mapped "b1-mean-2",
+  inputs += b2Mean2 mapped "b2-mean-2",
+  inputs += b3Mean2 mapped "b3-mean-2",
+  inputs += b4Mean2 mapped "b4-mean-2",
+  inputs += Visuals mapped "Visuals?",
+  inputs += NumberOfTrials mapped "Number-Of-Trials",
+  
+  // This is to make sure the inputs are also reported in the results file
+  outputs += (b1Mean1, b1Mean2,b1Variance, b2Mean1, b2Mean2, b2Variance, 
+            b3Mean1, b3Mean2,b3Variance, b4Mean1, b4Mean2,b4Variance,
+            NumberOfBandits, NumberOfAgents, Epsilon, InitialSample, Network,
+            NumberOfPulls, ResultCorrelation, PreferenceBias, NumberOfTrials, seed),
+  
+  // Actual output measures
+  outputs += subPerformance mapped "sub-final-performance",
+  outputs += subPerformanceVar mapped "sub-final-performance-var",
+  outputs += objPerformance1 mapped "obj-final-performance-0",
+  outputs += objPerformance1Var mapped "sub-final-performance-0-var",
+  outputs += objPerformance2 mapped "obj-final-performance-1",
+  outputs += objPerformance2Var mapped "sub-final-performance-1-var",
+
+  //Default values. Can be removed if OpenMOLE Vals are set by values coming from the workflow
+  seed := 0,
+  b1Mean1 := 10.0,
+  b1Mean2 := 10.0,
+  b1Variance := 100.0,
+  b2Mean1 := 0.0,
+  b2Mean2 := 0.0,
+  b2Variance := 0.0,
+  b3Mean1 := 0.0,
+  b3Mean2 := 0.0,
+  b3Variance := 0.0,
+  b4Mean1 := 0.0,
+  b4Mean2 := 0.0,
+  b4Variance := 0.0,
+  NumberOfBandits := 2.0,
+  NumberOfAgents := 10.0,
+  Epsilon := 0.0,
+  InitialSample := 1.0,
+  Network := "Complete",
+  NumberOfPulls := 500.0,
+  ResultCorrelation := 1.0,
+  PreferenceBias := 0.5,
+  Visuals := false,
+  NumberOfTrials := 10000.0)
+
+val sampling =
+    (ResultCorrelation in (-1.0 to 1.0 by 0.1)) x
+    (b1Mean2 in List(10.0, -10.0)) x
+    (seed in (UniformDistribution[Int]() take 3))
+
+val csvHook = CSVHook(workDirectory / "IntercriteriaCorrelation.csv")
+
+val env =
+    SLURMEnvironment(
+        "kzollman",
+        "localhost",
+        storageSharedLocally = true,
+        nodes = 1,
+        threads = 8
+    )
+    
+
+DirectSampling (
+   evaluation = incomensurablebanditmodelTask on env by 20 hook csvHook,
+   sampling = sampling
+   )

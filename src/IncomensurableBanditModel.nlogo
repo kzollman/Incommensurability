@@ -31,7 +31,7 @@ globals [bandit-means bandit-vars net-gap sub-final-performance sub-final-perfor
 ;;   current-result: what was my result this round?
 ;;   favored-outcome: represents which dimension of the payoff vector I care about
 
-turtles-own [ bandit-obs-mean bandit-obs-n current-bandit current-result favored-outcome]
+turtles-own [ bandit-obs-mean bandit-obs-n bandit-perf bandit-perf-n current-bandit current-result favored-outcome]
 
 ;;
 ;; setup: sets everything up
@@ -64,6 +64,9 @@ to setup
 
       set bandit-obs-mean replace-item i bandit-obs-mean (list (mean results-0) (mean results-1))
     ]
+
+    set bandit-perf n-values Number-Of-Bandits [[0 0]]
+    set bandit-perf-n n-values Number-Of-Bandits [0]
 
 
     if Visuals? [
@@ -116,13 +119,24 @@ to go-full
   ]
 
   set sub-final-performance mean sub-results
-  set sub-final-performance-var variance sub-results
-
   set obj-final-performance-0 mean obj-results-0
-  set obj-final-performance-0-var variance obj-results-0
-
   set obj-final-performance-1 mean obj-results-1
-  set obj-final-performance-1-var variance obj-results-1
+
+
+  ifelse length sub-results > 1 [
+    set sub-final-performance-var variance sub-results
+    set obj-final-performance-0-var variance obj-results-0
+    set obj-final-performance-1-var variance obj-results-1
+
+  ]
+  [
+    set sub-final-performance-var 0
+    set obj-final-performance-0-var 0
+    set obj-final-performance-1-var 0
+
+  ]
+
+
 
 end
 
@@ -177,9 +191,7 @@ to step
       ]
     ]
     if Network = "Complete" [
-      ask turtles [
-        update-complete
-      ]
+      update-complete
     ]
   ]
 
@@ -205,8 +217,16 @@ to play
     let my-results map [i -> item favored-outcome i] bandit-obs-mean
     set current-bandit position (max my-results) my-results
     set current-result draw-bandit current-bandit
-
   ]
+
+  let old-mean item current-bandit bandit-perf
+  let old-n item current-bandit bandit-perf-n
+  let new-mean (map [[m c] -> ((old-n * m) + c) / (old-n + 1)] old-mean current-result)
+
+  set bandit-perf replace-item current-bandit bandit-perf new-mean
+  set bandit-perf-n replace-item current-bandit bandit-perf-n (old-n + 1)
+
+
   set color (current-bandit * 30) + 15
 end
 
@@ -280,8 +300,8 @@ to update-network-large
 end
 
 ;;
-;; update-complete: must be called in turtle context. Same as update-network-large, except
-;;                  it presumes that you are updating everyone and completely ignores links
+;; update-complete: run in OBSERVER context (different from above). Works similarly to update-network-large,
+;;                  except it presumes that you are updating everyone and completely ignores links
 ;;                  this saves computational overhead for the complete graph
 ;;
 
@@ -296,13 +316,15 @@ to update-complete
       let mperf (list (mean results-0) (mean results-1))
       let num length results-0
 
-      let old-mean item i bandit-obs-mean
-      let old-n item i bandit-obs-n
+      ask turtles [
+        let old-mean item i bandit-obs-mean
+        let old-n item i bandit-obs-n
 
-      let new-mean (map [[m c] -> ((old-n * m) + (num * c)) / (old-n + num)] old-mean mperf)
+        let new-mean (map [[m c] -> ((old-n * m) + (num * c)) / (old-n + num)] old-mean mperf)
 
-      set bandit-obs-mean replace-item i bandit-obs-mean new-mean
-      set bandit-obs-n replace-item i bandit-obs-n (old-n + num)
+        set bandit-obs-mean replace-item i bandit-obs-mean new-mean
+        set bandit-obs-n replace-item i bandit-obs-n (old-n + num)
+      ]
 
     ]
   ]
@@ -323,13 +345,22 @@ to-report draw-bandit [arm]
 end
 
 to-report my-sub-performance
-  let my-results map [i -> item favored-outcome i] bandit-obs-mean
-  report (sum (map * my-results bandit-obs-n)) / (sum bandit-obs-n)
+  if ticks = 0 [
+    report 0
+  ]
+
+  let my-results map [i -> item favored-outcome i] bandit-perf
+  report (sum (map * my-results bandit-perf-n)) / (sum bandit-perf-n)
 end
 
 to-report my-obj-performance [correct-dimension]
-  let my-results map [i -> item correct-dimension i] bandit-obs-mean
-  report (sum (map * my-results bandit-obs-n)) / (sum bandit-obs-n)
+
+   if ticks = 0 [
+    report 0
+  ]
+
+  let my-results map [i -> item correct-dimension i] bandit-perf
+  report (sum (map * my-results bandit-perf-n)) / (sum bandit-perf-n)
 
 end
 
@@ -537,7 +568,7 @@ Number-Of-Agents
 Number-Of-Agents
 1
 100
-9.0
+10.0
 1
 1
 NIL
@@ -552,7 +583,7 @@ Epsilon
 Epsilon
 0
 1
-0.0
+0.5
 .01
 1
 NIL
@@ -648,7 +679,7 @@ ResultCorrelation
 ResultCorrelation
 -1
 1
-1.0
+-0.5
 .1
 1
 NIL
@@ -730,7 +761,7 @@ INPUTBOX
 507
 520
 Number-Of-Trials
-0.0
+2.0
 1
 0
 Number
