@@ -1,0 +1,264 @@
+---
+title: "Incommensurable bandit model"
+author: "Keivn J.S. Zollman"
+date: "March 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+## By defult, show code for all chunks in the knitted document,
+## as well as the output. To override for a particular chunk
+## use echo = FALSE in its options.
+knitr::opts_chunk$set(echo = TRUE) 
+
+## Set the default size of figures
+knitr::opts_chunk$set(fig.width=8, fig.height=5)  
+
+## Load the libraries we will be using
+library(grid)
+library(gridExtra)
+library(gtable)
+library(gapminder)
+library(here)
+library(socviz)
+library(tidyverse)
+
+#Setting up colors to use
+DarkBlue   <- "#31659B"
+DarkRed    <- "#EE4F3E"
+DarkGreen  <- "#2FB44C"
+DarkYellow <- "#EEA83E"
+
+
+```
+
+## Introduction
+
+This is an R Markdown document to develop graphs for the IncommensurableBanditModel.  Explanation for the model and how it works can be found elsewhere.
+
+There are two main sections here, one where one bandit dominates the other, thus there is no ambiguity about "good" means in the long run.  The second is where one bandit is better on one dimension and the other is worse on that dimension.
+
+## Dominating arm
+
+
+### What's the best correlation?
+
+```{r}
+rawCorrelation <- read.csv("../data/IncomEpsilonSearch.csv", header=TRUE)
+
+# The Filtering here is to only select the data where one bandit dominates.  The other part of the data will be looked at below.
+
+domCorrelation <- rawCorrelation %>% 
+  filter(b1Mean2 == 10) %>% 
+  group_by(ResultCorrelation) %>% 
+  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf = mean(objPerformance1), objPerfVar = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% 
+  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar)/sqrt(totalTrials)) )
+```
+
+
+```{r}
+plot <- ggplot(domCorrelation, aes(x = ResultCorrelation)) + 
+  geom_line(aes(y = subPerf, color = "Subjective")) + 
+  geom_pointrange(aes(y = subPerf, color = "Subjective", shape = "Subjective", ymin = subPerf - subCI, ymax = subPerf + subCI)) + 
+  geom_line(aes(y = objPerf, color = "Objective")) + 
+  geom_pointrange(aes(y = objPerf, color = "Objective", shape = "Objective", ymin = objPerf - objCI, ymax = objPerf + objCI))
+
+plot
+```
+
+
+```{r}
+
+plot <- ggplot(domCorrelation, aes(x = ResultCorrelation))  
+
+subplot <- plot + geom_line(aes(y = subPerf), color = DarkBlue, size = 1.75) + 
+  geom_point(aes(y=subPerf, size = subPerfVar), color = DarkBlue) + theme(axis.text.x = element_blank()) + xlab(element_blank()) + ylab("Subjective") + labs(size = "Variance")
+ 
+objplot <- plot + geom_line(aes(y = objPerf), color = DarkBlue, size = 1.75) + 
+  geom_point(aes(y = objPerf, size = objPerfVar), color = DarkBlue) + xlab("Correlation") + ylab("Objective") + labs(size = "Variance")
+
+grid.arrange(subplot, objplot, ncol = 1)
+
+```
+
+### Comparing Epsilon & corrrelations
+
+```{r}
+rawEpsilon <- read.csv("../data/IncomEpsilonSearch.csv", header=TRUE)
+
+# The Filtering here is to only select the data where one bandit dominates.  The other part of the data will be looked at below.
+
+domEpsilon <- rawEpsilon %>% 
+  filter(b1Mean2 == 10) %>% 
+  group_by(Epsilon, ResultCorrelation) %>% 
+  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf = mean(objPerformance1), objPerfVar = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% 
+  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar)/sqrt(totalTrials)) )
+```
+
+
+Performance, as measured subjectively
+```{r}
+plot <- ggplot(domEpsilon, aes(x = Epsilon, y = subPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
+
+plot + geom_point(aes(size = subPerfVar)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Subjective Performance") + labs(size = "Variance")
+```
+
+Performance, as measured objectively (i.e. dimension 1 is the right dimension)
+
+```{r}
+plot <- ggplot(domEpsilon, aes(x = Epsilon, y = objPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf - objCI, ymax = objPerf + objCI)) 
+
+plot + geom_pointrange() + geom_line()
+```
+
+### Population division
+
+```{r}
+rawPopDivision <- read.csv("../data/IncomPreferenceSearch.csv", header=TRUE)
+
+# The Filtering here is to only select the data where one bandit dominates.  The other part of the data will be looked at below.
+
+domPopDivision <- rawPopDivision %>% 
+  filter(b1Mean2 == 10) %>% 
+  group_by(PreferenceBias, ResultCorrelation) %>% 
+  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf = mean(objPerformance1), objPerfVar = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% 
+  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar)/sqrt(totalTrials)) )
+```
+
+
+Performance, as measured subjectively
+```{r}
+plot <- ggplot(domPopDivision, aes(x = PreferenceBias, y = subPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
+
+plot + geom_point(aes(size = subPerfVar)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Subjective Performance") + labs(size = "Variance")
+```
+
+Performance, as measured objectively (i.e. dimension 1 is the right dimension)
+
+```{r}
+plot <- ggplot(domPopDivision, aes(x = PreferenceBias, y = objPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf - objCI, ymax = objPerf + objCI)) 
+
+plot + geom_pointrange() + geom_line()
+```
+
+## Non-dominance
+
+### What's the best correlation
+
+```{r}
+
+nonDomCorrelation <- rawCorrelation %>% 
+  filter(b1Mean2 == -10) %>% 
+  group_by(ResultCorrelation) %>% 
+  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf1 = mean(objPerformance1), objPerfVar1 = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf2 = mean(objPerformance2), objPerfVar2 = sum(objPerformance2Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>%
+  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI1 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar1)/sqrt(totalTrials)), objCI2 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar2)/sqrt(totalTrials)) )
+```
+
+
+```{r}
+plot <- ggplot(nonDomCorrelation, aes(x = ResultCorrelation)) 
+
+subPlot <- plot + 
+  geom_line(aes(y = subPerf), color = DarkBlue, size = 1.75) + 
+  geom_point(aes(y = subPerf, size = subPerfVar, label = subPerfVar), color = DarkBlue) + 
+  theme(axis.text.x = element_blank()) + xlab(element_blank()) + ylab("Subjective\n") + labs(size = "Variance") + scale_y_continuous(breaks = c(3.0, 3.2, 3.4, 3.6, 3.8)) + scale_size(breaks = c(2.5, 3, 3.5, 4), limits = c(2.0, 5.0))
+
+obj1Plot <- plot +
+  geom_line(aes(y = objPerf1), color = DarkBlue, size = 1.75) + 
+  geom_point(aes(y = objPerf1, size = objPerfVar1), color = DarkBlue)  + theme(axis.text.x = element_blank()) + xlab(element_blank()) + ylab("Objective\n(Good)") + labs(size = "Variance") + scale_size(breaks = c(2.5, 3, 3.5, 4), limits = c(2.0, 5.0)) 
+
+obj2Plot <- plot +
+  geom_line(aes(y = objPerf2), color = DarkBlue, size = 1.75) + 
+  geom_point(aes(y = objPerf2, size = objPerfVar2), color = DarkBlue) + xlab("Correlation") + ylab("Objective\n(Bad)") + labs(size = "Variance") + scale_size(breaks = c(2.5, 3, 3.5, 4), limits = c(2.0, 5.0))
+
+grid.arrange(subPlot, obj1Plot, obj2Plot, ncol = 1)
+```
+
+
+### Epsilon
+
+
+In this section, things are a little more complicated.  Now suppose that one bandit arm is better on one dimension than the other one. 
+
+```{r}
+nonDomEpsilon <- rawEpsilon %>% 
+  filter(b1Mean2 == -10) %>% 
+  group_by(Epsilon, ResultCorrelation) %>% 
+  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf1 = mean(objPerformance1), objPerfVar1 = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf2 = mean(objPerformance2), objPerfVar2 = sum(objPerformance2Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% 
+  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI1 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar1)/sqrt(totalTrials)), objCI2 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar2)/sqrt(totalTrials)) )
+```
+
+
+Performance, as measured subjectively
+```{r}
+plot <- ggplot(nonDomEpsilon, aes(x = Epsilon, y = subPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation)))
+
+plot + geom_point(aes(size = subPerfVar)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Subjective Performance") + labs(size = "Variance")
+```
+
+Performance, as measured objectively (i.e. dimension 1 is the right dimension) assuming that the bandit with the larger variance is better.
+
+```{r}
+plot <- ggplot(nonDomEpsilon, aes(x = Epsilon, y = objPerf1, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
+
+objplot1 = plot + geom_point(aes(size = objPerfVar1)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Objective Performance (good)") + labs(size = "Variance")
+
+plot <- ggplot(nonDomEpsilon, aes(x = Epsilon, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
+
+objplot2 = plot + geom_point(aes(size = objPerfVar2)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Objective Performance (bad)") + labs(size = "Variance")
+
+legend = gtable_filter(ggplot_gtable(ggplot_build(objplot1)), "guide-box")
+
+grid.arrange(objplot1 + theme(legend.position="none"), objplot2 + theme(legend.position="none"), legend, ncol = 3, widths = c(.45, .45, .1))
+```
+
+Performance, as measured objectively (i.e. dimension 2 is the right dimension) assuming that the bandit with the larger variance is worse.
+
+```{r}
+plot <- ggplot(nonDomEpsilon, aes(x = Epsilon, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf2 - objCI2, ymax = objPerf2 + objCI2)) 
+
+plot + geom_pointrange() + geom_line()
+```
+
+### Population division
+
+```{r}
+nonDomPopDivision <- rawPopDivision %>% 
+  filter(b1Mean2 == -10) %>% 
+  group_by(PreferenceBias, ResultCorrelation) %>% 
+  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf1 = mean(objPerformance1), objPerfVar1 = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf2 = mean(objPerformance2), objPerfVar2 = sum(objPerformance2Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% 
+  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI1 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar1)/sqrt(totalTrials)), objCI2 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar2)/sqrt(totalTrials)) )
+```
+
+
+Performance, as measured subjectively
+```{r}
+plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = subPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation)))
+
+subplot = plot + geom_point(aes(size = subPerfVar)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Subjective\n") + labs(size = "Variance") + xlab(element_blank()) + theme(axis.text.x = element_blank())
+
+plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = objPerf1, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
+
+objplot1 =  plot + geom_point(aes(size = objPerfVar1)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Objective\n(good)") + labs(size = "Variance") + xlab(element_blank()) + theme(axis.text.x = element_blank())
+
+plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf2 - objCI2, ymax = objPerf2 + objCI2)) 
+
+objplot2 = plot + geom_point(aes(size = objPerfVar1)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Objective\n(bad)") + labs(size = "Variance") + xlab("Population division")
+
+legend = gtable_filter(ggplot_gtable(ggplot_build(subplot)), "guide-box")
+
+grid.arrange(arrangeGrob(subplot  + theme(legend.position="none"), objplot1 + theme(legend.position="none"), objplot2 + theme(legend.position="none"), ncol = 1), legend, ncol = 2, widths = c(.75, .25))
+```
+
+Performance, as measured objectively (i.e. dimension 1 is the right dimension)
+
+```{r}
+```
+
+Performance, as measured objectively (i.e. dimension 2 is the right dimension)
+
+```{r}
+plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf2 - objCI2, ymax = objPerf2 + objCI2)) 
+
+plot + geom_pointrange() + geom_line()
+```

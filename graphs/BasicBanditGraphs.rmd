@@ -20,6 +20,11 @@ library(here)
 library(socviz)
 library(tidyverse)
 
+#Setting up colors to use
+DarkBlue   <- "#31659B"
+DarkRed    <- "#EE4F3E"
+DarkGreen  <- "#2FB44C"
+DarkYellow <- "#EEA83E"
 ```
 
 ## Introduction
@@ -39,9 +44,10 @@ epsilonVariance <- rawEpsilonVariance %>% group_by(Epsilon, b1Variance) %>% summ
 ```
 
 ```{r}
-plot <- ggplot(epsilonVariance, aes(x = Epsilon, y = performance, group = b1Variance, color = as.character(b1Variance), shape = as.character(b1Variance), min = performance - confidenceInterval, ymax = performance + confidenceInterval)) 
+plot <- ggplot(epsilonVariance, aes(x = Epsilon, y = performance, group = b1Variance, color = as.character(b1Variance), shape = as.character(b1Variance))) 
 
-plot + geom_pointrange() + geom_line()
+plot + geom_point(size = 4) + geom_line(size = 1.75) +
+  scale_color_manual(breaks = c("10", "25", "50", "100"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow), name = "Variance of\nunknown arm")  + scale_shape_manual(breaks = c("10", "25", "50", "100"), values=c(15, 16, 17, 18), name = "Variance of\nunknown arm")
 ```
 
 
