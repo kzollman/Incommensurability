@@ -67,9 +67,9 @@ val incomensurablebanditmodelTask = NetLogo6Task(workDirectory / "Incomensurable
   outputs += subPerformance mapped "sub-final-performance",
   outputs += subPerformanceVar mapped "sub-final-performance-var",
   outputs += objPerformance1 mapped "obj-final-performance-0",
-  outputs += objPerformance1Var mapped "sub-final-performance-0-var",
+  outputs += objPerformance1Var mapped "obj-final-performance-0-var",
   outputs += objPerformance2 mapped "obj-final-performance-1",
-  outputs += objPerformance2Var mapped "sub-final-performance-1-var",
+  outputs += objPerformance2Var mapped "obj-final-performance-1-var",
 
   //Default values. Can be removed if OpenMOLE Vals are set by values coming from the workflow
   seed := 0,

@@ -226,22 +226,32 @@ plot + geom_pointrange() + geom_line()
 nonDomPopDivision <- rawPopDivision %>% 
   filter(b1Mean2 == -10) %>% 
   group_by(PreferenceBias, ResultCorrelation) %>% 
-  summarize(subPerf = mean(subPerformance), subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf1 = mean(objPerformance1), objPerfVar1 = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials), objPerf2 = mean(objPerformance2), objPerfVar2 = sum(objPerformance2Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), totalTrials = sum(NumberOfTrials)) %>% 
-  mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), objCI1 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar1)/sqrt(totalTrials)), objCI2 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar2)/sqrt(totalTrials)) )
+  summarize(subPerf = mean(subPerformance), 
+            subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), 
+            totalTrials = sum(NumberOfTrials), objPerf1 = mean(objPerformance1), 
+            objPerfVar1 = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1),
+            totalTrials = sum(NumberOfTrials), objPerf2 = mean(objPerformance2), 
+            objPerfVar2 = sum(objPerformance2Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1),
+            totalTrials = sum(NumberOfTrials)) %>% 
+  
+    mutate(subCI = qt(.975,df=totalTrials - 1)*(sqrt(subPerfVar)/sqrt(totalTrials)), 
+           objCI1 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar1)/sqrt(totalTrials)), 
+           objCI2 = qt(.975,df=totalTrials - 1)*(sqrt(objPerfVar2)/sqrt(totalTrials)),
+           oppPrefBias = 1 - PreferenceBias)
 ```
 
 
 Performance, as measured subjectively
 ```{r}
-plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = subPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation)))
+plot <- ggplot(nonDomPopDivision, aes(x = oppPrefBias, y = subPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation)))
 
 subplot = plot + geom_point(aes(size = subPerfVar)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Subjective\n") + labs(size = "Variance") + xlab(element_blank()) + theme(axis.text.x = element_blank())
 
-plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = objPerf1, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
+plot <- ggplot(nonDomPopDivision, aes(x = oppPrefBias, y = objPerf1, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation))) 
 
 objplot1 =  plot + geom_point(aes(size = objPerfVar1)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Objective\n(good)") + labs(size = "Variance") + xlab(element_blank()) + theme(axis.text.x = element_blank())
 
-plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf2 - objCI2, ymax = objPerf2 + objCI2)) 
+plot <- ggplot(nonDomPopDivision, aes(x = oppPrefBias, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf2 - objCI2, ymax = objPerf2 + objCI2)) 
 
 objplot2 = plot + geom_point(aes(size = objPerfVar1)) + geom_line(size = 1.75) + scale_color_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(DarkRed, DarkBlue, DarkGreen, DarkYellow, "#222222"), name = "Correlation")  + scale_shape_manual(breaks = c("-1", "-0.5", "0", "0.5", "1"), values=c(15, 16, 17, 18, 19), name = "Correlation") + ylab("Objective\n(bad)") + labs(size = "Variance") + xlab("Population division")
 
@@ -250,10 +260,6 @@ legend = gtable_filter(ggplot_gtable(ggplot_build(subplot)), "guide-box")
 grid.arrange(arrangeGrob(subplot  + theme(legend.position="none"), objplot1 + theme(legend.position="none"), objplot2 + theme(legend.position="none"), ncol = 1), legend, ncol = 2, widths = c(.75, .25))
 ```
 
-Performance, as measured objectively (i.e. dimension 1 is the right dimension)
-
-```{r}
-```
 
 Performance, as measured objectively (i.e. dimension 2 is the right dimension)
 
