@@ -20,6 +20,7 @@ library(gridExtra)
 library(gtable)
 library(gapminder)
 library(here)
+library(reshape)
 library(socviz)
 library(tidyverse)
 
@@ -139,6 +140,28 @@ Performance, as measured objectively (i.e. dimension 1 is the right dimension)
 plot <- ggplot(domPopDivision, aes(x = PreferenceBias, y = objPerf, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf - objCI, ymax = objPerf + objCI)) 
 
 plot + geom_pointrange() + geom_line()
+```
+
+### Variance comparisons 
+
+```{r}
+rawVarComp <- read.csv("../data/IncomDoubleVarianceSearch.csv", header=TRUE)
+
+
+domVarianceComp <- rawVarComp %>% 
+  filter(b1Mean2 == 10) %>% 
+  group_by(b1Variance, b2Variance) %>% 
+  summarize(subPerf = mean(subPerformance), 
+            subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1),
+            totalTrials = sum(NumberOfTrials), 
+            objPerf = mean(objPerformance1), 
+            objPerfVar = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1), 
+            totalTrials = sum(NumberOfTrials)) 
+```
+
+
+```{r}
+ggplot(domVarianceComp, aes(x = b1Variance, y = b2Variance, fill = subPerf)) + geom_tile()
 ```
 
 ## Non-dominance
@@ -267,4 +290,36 @@ Performance, as measured objectively (i.e. dimension 2 is the right dimension)
 plot <- ggplot(nonDomPopDivision, aes(x = PreferenceBias, y = objPerf2, group = ResultCorrelation, color = as.character(ResultCorrelation), shape = as.character(ResultCorrelation), min = objPerf2 - objCI2, ymax = objPerf2 + objCI2)) 
 
 plot + geom_pointrange() + geom_line()
+```
+
+### Variance comparisons 
+
+```{r}
+rawVarComp <- read.csv("../data/IncomDoubleVarianceSearch.csv", header=TRUE)
+
+
+nonDomVarianceComp <- rawVarComp %>% 
+  filter(b1Mean2 == -10) %>% 
+  group_by(b1Variance, b2Variance) %>% 
+  summarize(subPerf = mean(subPerformance), 
+            subPerfVar = sum(subPerformanceVar * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1),
+            totalTrials = sum(NumberOfTrials), 
+            objPerf1 = mean(objPerformance1), 
+            objPerfVar1 = sum(objPerformance1Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1),
+            objPerf2 = mean(objPerformance2), 
+            objPerfVar2 = sum(objPerformance2Var * (NumberOfTrials - 1))/(sum(NumberOfTrials) - 1)) 
+```
+
+
+```{r}
+ggplot(nonDomVarianceComp, aes(x = b1Variance, y = b2Variance, fill = subPerf)) + geom_tile()
+```
+
+
+```{r}
+ggplot(nonDomVarianceComp, aes(x = b1Variance, y = b2Variance, fill = objPerf1)) + geom_tile()
+```
+
+```{r}
+ggplot(nonDomVarianceComp, aes(x = b1Variance, y = b2Variance, fill = objPerf2)) + geom_tile()
 ```
